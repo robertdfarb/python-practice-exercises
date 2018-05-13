@@ -14,6 +14,7 @@ class Deck():
     CLUBS = '\u2618'
 
     suits = [SPADES, DIAMONDS, HEARTS, CLUBS]
+    face = ['2','3','4','5','6','7','8','9','J','Q','K','A']
     cards = []
     num_decks = 1
 
@@ -24,8 +25,6 @@ class Deck():
             for face in range(1,14):
                 for suit in self.suits:
                     self.cards.append((face, suit))
-        #print ("Deck created using {} sets of cards.".format({self.num_decks}))
-        #print (self.SPADES)
 
     def shuffle(self,num=1):
         '''
@@ -33,26 +32,35 @@ class Deck():
 
             kwargs: Number of Times to Shuffle, Defaults to 1
         '''
+        
         for shufflenum in range(1,num+1):
             for i in range (1,53*self.num_decks):
                 shuffled_card = self.cards.pop(random.randint(0,51))
                 self.cards.insert(0,shuffled_card)
-            #print('shuffled {} time'.format(str(shufflenum)))
 
     def show_deck(self):
         print(self.cards)
 
 
-class Game():
+class Player():
 
-    game_list = ['Solitaire', 'Tic Tac Toe','Texas Holdem']
-    terminal_size = os.get_terminal_size().columns
-    border = ''.center(terminal_size,'*')
-    game_selected = '0'
-    current_game = ''
     playercount = 1
     playernames = []
     playerhands = {}
+
+
+class Game(Player, Deck, Bets):
+
+    game_list = ['Solitaire', 'Tic Tac Toe','Texas Holdem']
+
+    try:
+        terminal_size = os.get_terminal_size().columns
+    except:
+        terminal_size = 80
+
+    border = ''.center(terminal_size,'*')
+    game_selected = '0'
+    current_game = ''
 
     def game_selection(self):
         for num, game in enumerate(self.game_list):
@@ -75,24 +83,34 @@ class Game():
         print(self.border + "\n")
 
     def player_setup(self):
-        self.playercount = int(input("Enter number of players:  "))
-        for i in range(1,self.playercount+1):
-            player_name = input("Enter player number {}'s name:   ".format(i))
-            self.playernames.append(player_name)
+
+        self.playercount = input("Enter number of players:  ")
+        try:
+           self.playercount = int(self.playercount)
+        except:
+            print ('Not a valid number')
+            self.player_setup()
+
+        if self.playercount > 7 or self.playercount < 2:
+            print ("You must choose between 2 and 7 players!")
+            self.player_setup()
+
+        else:
+            for i in range(1,self.playercount+1):
+                player_name = input("Enter player number {}'s name:   ".format(i))
+                self.playernames.append(player_name)
 
 # Fix the betting
-class Betting(Game):
+class Bets(Player):
 
-    playerchips = {}
     playerbets = {}
     min_bet = 5
-
+    current_bet = 0
+    small_blinds = 1
+    big_blinds = 2
 
     def __init__(self):
         playerchips =  dict.fromkeys(self.playernames)
-
-    small_blinds = 1
-    big_blinds = 2
 
     def initialize_chips(self, startingamt=100):
         for player in self.playernames:
@@ -114,12 +132,44 @@ class Betting(Game):
         print ("You have {chips} chips use them wisely! \n".format(chips=self.playerchips[player]))
         return self.playerchips[player]
 
-    def place_bet(self, player):
-        bet = int(input("Hi {p} enter the amount you would like to bet: ".format(p=player)))
+
+    def bet(self, player):
+        bettype = input("The current bet is {current_bet} enter 1 to raise and 2 to check or 3 to fold".format(current_bet=current_bet))
+        if bettype == '1':
+            raiseamt = input("Enter the amount you would like to raise: ")
+            check_bet(player, raiseamt)
+            place_bet(player, self.raiseamt)
+        elif bettype == '2':
+            place_bet(player, bet=self.currentbet)
+        elif bettype == '3':
+            fold = input("Type 'FOLD to confirm you would like to fold!")
+            if fold == "FOLD"
+
+
+
+            
+            
+    def check_bet(self,player,bet):
+        
         if bet == 0:
             return
         elif bet > self.playerchips[player]:
             print ("You only have {} chips, and you tried to bet {}, nice try big shot!".format(player,bet))
+        elif bet < self.min_bet:
+            print ("Sorry you must bet at least {}".format(self.min_bet))
+            return None
+        
+    
+    def place_bet(self, player, bet=0):
+        try: 
+            bet = int(bet)
+        except:
+            print('Please try again, the bet must be an integer')
+        if bet == 0:
+            return
+        elif bet > self.playerchips[player]:
+            print ("You only have {} chips, and you tried to bet, you can't \
+                   outsmart this computer program {}, nice try big shot!".format(player,bet))
         elif bet < self.min_bet:
             print ("Sorry you must bet at least {}".format(self.min_bet))
         else:
@@ -132,7 +182,6 @@ class Betting(Game):
                 self.playerchips[player] = self.playerchips[player] - bet
                 print("{p} bet {a} \n ".format(p=player, a=bet))
 
-
     def distribute_winnings(self, *winner):
         # No Winner results in a distribution back to original players
         if winner == None:
@@ -140,12 +189,13 @@ class Betting(Game):
                 self.playerchips[player] =+ amount
 
 
+
 class TexasHoldem(Betting,Deck):
 
-    initialcards = 7
+    initialcards = 2
     max_players = 7
-    times_to_shuffle = 3
-    house_cards =  []
+    times_to_shuffle = 1
+    house_cards = []
 
     def __str__(self):
         return "Texas Holdem!"
@@ -175,7 +225,7 @@ class TexasHoldem(Betting,Deck):
     def show_hand(self,player):
         print ("HERE IS YOUR HAND:\n")
         for index, card in enumerate(self.playerhands[player]):
-            print (index+1, '.  ', card)
+            print (index+1, '.  ', card[0], 'of', card[1])
         print('\n')
 
     #need to see what the center cards are actually called!
@@ -195,21 +245,20 @@ class TexasHoldem(Betting,Deck):
 
     def play_round(self,num=1):
         for i in range(num):
-            for player in self.playernames:
+            for playernum, player in enumerate(self.playernames):
                 self.show_house()
                 print ("{player}'s turn \n".format(player=player).center(self.terminal_size))
                 self.show_chips(player)
                 self.show_hand(player)
-                self.place_bet(player)
+                self.place_bet(player, playernum)
                 clear()
 
     def play(self):
-        self.play_round(3)
+        self.play_round(1)
         self.house_deal(1)
         self.play_round(1)
         self.house_deal(1)
-        print (show_all_hands)
-
+        
 
 def main():
     clear()
